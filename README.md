@@ -6,6 +6,9 @@ annotations.
 Right now it's nearly featureless, but it does support subcommands! See
 `test_clii.py` for more details.
 
+It's implemented in a single file to be suitable for vendoring if you don't
+want to deal with PyPI.
+
 ## Installation
 
 ```sh
@@ -23,7 +26,7 @@ cli = App(description=__doc__)
 @cli.main
 def say_hello(name: str, 
               greeting: Arg('-g', str, 'Greeting to use') = 'hello'):
-    """Sum two numbers."""
+    """Greet somebody."""
     print(f'{greeting}, {name}')
 
 
