@@ -6,8 +6,9 @@ annotations.
 Right now it's nearly featureless, but it does support subcommands! See
 `test_clii.py` for more details.
 
-It's implemented in a single file to be suitable for vendoring if you don't
-want to deal with PyPI.
+It has no dependencies and is implemented in a single file to be suitable for
+vendoring if you don't want to deal with PyPI -- just yank `clii.py` and 
+stick it somewhere in your project.
 
 ## Installation
 
