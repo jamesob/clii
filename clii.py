@@ -4,7 +4,7 @@ clii
 The easiest damned argparse wrapper there ever was.
 
 
-Copyright 2019 James O'Beirne
+Copyright 2020 James O'Beirne
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -28,9 +28,14 @@ import argparse
 import functools
 import inspect
 import typing as t
+import os
 import logging
 
+
 logger = logging.getLogger('clii')
+if os.environ.get('CLII_DEBUG'):
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(logging.StreamHandler())
 
 
 class Arg:
@@ -40,19 +45,25 @@ class Arg:
                  help: str = '',
                  default: object = inspect.Parameter.empty,
                  is_kwarg: bool = False,
+                 is_vararg: bool = False,
+                 dest: t.Optional[str] = None,
                  ):
-        self.all_names = []
+        names: t.List[str] = (
+            [name_or_flags] if isinstance(name_or_flags, str) else
+            list(name_or_flags))
 
-        if isinstance(name_or_flags, str):
-            self.name = name_or_flags
-            self.all_names.append(self.name)
-        else:
-            self.name = name_or_flags[0]
-            self.all_names = list(name_or_flags)
+        # Store original parameter name unmangled (e.g. no '-' for '_' sub).
+        self.dest = dest or names[0]
 
+        if is_kwarg:
+            names = [n.replace('_', '-') for n in names]
+
+        self.name = names[0]
+        self.all_names = list(names)
         self.type = type
         self.default = default
         self.is_kwarg = is_kwarg
+        self.is_vararg = is_vararg
         self.help = help
 
     @classmethod
@@ -69,29 +80,43 @@ class Arg:
             arg.is_kwarg = is_kwarg(param)
             arg.default = param.default
             arg.update_name(param.name)
+            arg.dest = param.name
             return arg
         return cls(
             param.name,
             type=param.annotation,
             default=param.default,
             is_kwarg=is_kwarg(param),
+            is_vararg=(param.kind == inspect.Parameter.VAR_POSITIONAL),
+            dest=param.name,
         )
 
     @classmethod
     def from_func(cls, func: t.Callable) -> t.Sequence['Arg']:
-        sig = inspect.signature(func)
-
         return tuple(
-            cls.from_parameter(param)
-            for param in sig.parameters.values())
+            cls.from_parameter(param) for param in
+            _get_func_params(func) if
+            # Ignore kwargs; they can't be sensibly interpreted into CLI flags.
+            param.kind != inspect.Parameter.VAR_KEYWORD)
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
-        kwargs = dict(default=self.default, type=self.type, help=self.arg_help)
+        kwargs = dict(
+            default=self.default, type=self.type, help=self.arg_help)
 
         if self.is_kwarg:
-            kwargs['dest'] = self.name
+            kwargs['dest'] = self.dest
+        elif self.is_vararg:
+            kwargs['nargs'] = '*'
+            kwargs.pop('default', '')
+            if kwargs.get('type') == inspect.Parameter.empty:
+                kwargs.pop('type')
 
-        parser.add_argument(*self.names, **kwargs)
+        if self.type == bool or self.default in [True, False]:
+            kwargs['action'] = 'store_false' if self.default else 'store_true'
+            kwargs.pop('type', '')
+
+        logger.debug(f"Attaching argument: {self.names} -> {kwargs}")
+        parser.add_argument(*self.names, **kwargs)  # type: ignore
 
     def update_name(self, name: str):
         if name not in self.all_names:
@@ -102,7 +127,7 @@ class Arg:
         self.name = name
 
     @property
-    def names(self) -> t.Tuple[str]:
+    def names(self) -> t.Tuple[str, ...]:
         if not self.is_kwarg:
             return (self.name,)
 
@@ -120,10 +145,24 @@ class Arg:
         return out
 
 
+def _get_func_params(func, kind_filter: t.Optional[t.List[str]] = None,
+                     ) -> t.List[inspect.Parameter]:
+    ps = list(inspect.signature(func).parameters.values())
+    if kind_filter:
+        ps = [p for p in ps if p.kind in kind_filter]
+    return ps
+
+
 class App:
     def __init__(self, *args, **kwargs):
         self.parser = argparse.ArgumentParser(*args, **kwargs)
         self.subparsers = None
+
+    def add_arg(self, *args, **kwargs):
+        self.parser.add_argument(*args, **kwargs)
+        return self.parser
+
+    add_argument = add_arg
 
     def main(self, fnc):
         self.parser.set_defaults(func=fnc)
@@ -139,7 +178,7 @@ class App:
             return fnc(*args, **kwargs)
         return wrapper
 
-    def subcommand(self, fnc):
+    def cmd(self, fnc):
         if not self.subparsers:
             self.subparsers = self.parser.add_subparsers()
 
@@ -157,7 +196,24 @@ class App:
         return wrapper
 
     def run(self):
-        args = vars(self.parser.parse_args())
+        self.args = self.parser.parse_args()
+        args = vars(self.args)
         logger.debug("Parsed args: %s", args)
         fnc = args.pop('func')
-        fnc(**args)
+        vararg_params = _get_func_params(
+            fnc, kind_filter=[inspect.Parameter.VAR_POSITIONAL])
+        varargs = []
+
+        if vararg_params:
+            varargs = args.pop(vararg_params[0].name)
+
+        func_args = {}
+
+        # Only pull in those parameters which `fnc` accepts, since the
+        # global parser may have pulled in more.
+        for p in _get_func_params(fnc):
+            if p.kind == inspect.Parameter.VAR_POSITIONAL:
+                continue
+            func_args[p.name] = args[p.name]
+
+        return fnc(*varargs, **func_args)
