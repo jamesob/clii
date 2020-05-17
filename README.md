@@ -1,11 +1,35 @@
 # clii
 
+Generate argument parsers from Python 3 function annotations with minimal
+boilerplate.
+
+
+```python
+#!/usr/bin/env python3.8
+from clii import App, Arg
+from pathlib import Path
+from subprocess import run
+
+cli = App()
+
+@cli.cmd
+def add(a: int, b: int = 3):
+    print(a + b)
+
+@cli.main
+def subtract(path: Path):
+    run(f'rm -rf {path}')
+
+if __name__ == '__main__':
+    cli.run() 
+```
+
 Okay, you and I both know the last thing that anyone needs is another way to
 generate command line interfaces. The idea of adding an additional dependency
 to your project just so you can learn yet another
 only-slightly-more-ergonomic-than-stdlib interface for parsing args is right up
 there with rewriting all your Makefiles in whatever flavor-of-the-week
-Javascript-based build system. Don't do it.
+Javascript-based build system. I get it.
 
 Yes, instead of writing this library I should probably do something actually
 useful like try to find a life partner or see how much grain alcohol I can
