@@ -35,7 +35,7 @@ Yes, instead of writing this library I should probably do something actually
 useful like try to find a life partner or see how much grain alcohol I can
 drink within the span of an X-Files episode, but each time I'm typing out some
 overly verbose `argparse` incantation that I had to look up on docs.python.org
-for the fourth time in a year, one of the few remaining shreds of childlike
+for the sixteenth time in a year, one of the few remaining shreds of childlike
 wonder for computing left in my over-caffeinated heart gets crosslegged and
 sets itself on fire.
 
