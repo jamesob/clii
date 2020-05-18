@@ -183,7 +183,7 @@ class App:
             self.subparsers = self.parser.add_subparsers()
 
         sub = self.subparsers.add_parser(
-            fnc.__name__, description=fnc.__doc__)
+            fnc.__name__.replace('_', '-'), description=fnc.__doc__)
 
         for arg in Arg.from_func(fnc):
             arg.add_to_parser(sub)

@@ -39,16 +39,19 @@ for the sixteenth time in a year, one of the few remaining shreds of childlike
 wonder for computing left in my over-caffeinated heart gets crosslegged and
 sets itself on fire.
 
-[Click](https://click.palletsprojects.com/en/7.x/) sucks. It's a lot of code
-and the interface is dogshit. [Docopt](https://github.com/docopt/docopt) is
-neat but it's slow, a novelty, also a ton of code, and I have to read 3
-examples each time before I use it.
+[Click](https://click.palletsprojects.com/en/7.x/) is the equivalent of calling
+in an architect to fix your kitchen sink. It's a lot of code and the interface
+is wordy and unintuitive. [Docopt](https://github.com/docopt/docopt) is neat
+but it's slow, a novelty, also a ton of code, and I have to read 3 examples
+each time before I use it.
 [Argparse](https://docs.python.org/3/library/argparse.html) is an alright
 builtin, and the noble progenitor of this library, but it's overly verbose and
-wiring up subparsers that call functions is a pain.
+the common task of wiring up subparsers that call functions is a pain.
 
-Don't immolate the childlike wonder. Use function annotations. Use my stupid
-library.
+**Don't immolate your childlike wonder. Use function annotations. Use this
+stupid library.**
+
+---
 
 - **No dependencies.** This library has no dependencies and is a single file.
   You wanna vendor it? Vendor it.
