@@ -30,6 +30,7 @@ import inspect
 import typing as t
 import os
 import logging
+from textwrap import dedent
 
 
 logger = logging.getLogger('clii')
@@ -67,7 +68,9 @@ class Arg:
         self.help = help
 
     @classmethod
-    def from_parameter(cls, param: inspect.Parameter) -> 'Arg':
+    def from_parameter(cls,
+                       param: inspect.Parameter,
+                       help: str = '') -> 'Arg':
         type = param.annotation
         arg = None
 
@@ -86,6 +89,7 @@ class Arg:
             param.name,
             type=param.annotation,
             default=param.default,
+            help=help,
             is_kwarg=is_kwarg(param),
             is_vararg=(param.kind == inspect.Parameter.VAR_POSITIONAL),
             dest=param.name,
@@ -93,10 +97,17 @@ class Arg:
 
     @classmethod
     def from_func(cls, func: t.Callable) -> t.Sequence['Arg']:
+        # Ignore `**kwargs`; it can't be sensibly interpreted into flags
+        params = [
+            p for p in _get_func_params(func) if
+            p.kind != inspect.Parameter.VAR_KEYWORD]
+
+        helps_from_doc = _get_helps_from_func(func, [p.name for p in params])
+
         return tuple(
-            cls.from_parameter(param) for param in
-            _get_func_params(func) if
-            # Ignore kwargs; they can't be sensibly interpreted into CLI flags.
+            cls.from_parameter(param, helps_from_doc.get(param.name, ''))
+            for param in _get_func_params(func) if
+            # Ignore `**kwargs`; it can't be sensibly interpreted into flags
             param.kind != inspect.Parameter.VAR_KEYWORD)
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
@@ -141,16 +152,28 @@ class Arg:
         if self.default is not inspect.Parameter.empty:
             if out:
                 out += '. '
-            out += f'Default: {self.default}'
+            out += f'default: {self.default}'
         return out
 
 
-def _get_func_params(func, kind_filter: t.Optional[t.List[str]] = None,
-                     ) -> t.List[inspect.Parameter]:
-    ps = list(inspect.signature(func).parameters.values())
-    if kind_filter:
-        ps = [p for p in ps if p.kind in kind_filter]
-    return ps
+def _get_func_params(func) -> t.List[inspect.Parameter]:
+    return list(inspect.signature(func).parameters.values())
+
+
+def _get_helps_from_func(func, param_names) -> t.Dict[str, str]:
+    if not func.__doc__:
+        return {}
+
+    helps_from_doc = {}
+
+    for line in dedent(func.__doc__).splitlines():
+        for p in param_names:
+            patt = f'  {p}:'
+
+            if patt in line:
+                helps_from_doc[p] = line.split(patt)[-1].strip()
+
+    return helps_from_doc
 
 
 class App:
@@ -195,25 +218,32 @@ class App:
             return fnc(*args, **kwargs)
         return wrapper
 
-    def run(self):
+    def parse_for_run(self) -> t.Tuple[t.Callable, t.Tuple[t.List, t.Dict]]:
         self.args = self.parser.parse_args()
         args = vars(self.args)
         logger.debug("Parsed args: %s", args)
         fnc = args.pop('func')
-        vararg_params = _get_func_params(
-            fnc, kind_filter=[inspect.Parameter.VAR_POSITIONAL])
-        varargs = []
 
-        if vararg_params:
-            varargs = args.pop(vararg_params[0].name)
-
-        func_args = {}
+        func_args = []
+        func_kwargs = {}
+        building_kwargs = False
 
         # Only pull in those parameters which `fnc` accepts, since the
-        # global parser may have pulled in more.
+        # global parser may have supplied more.
         for p in _get_func_params(fnc):
-            if p.kind == inspect.Parameter.VAR_POSITIONAL:
-                continue
-            func_args[p.name] = args[p.name]
+            if p.kind == inspect.Parameter.KEYWORD_ONLY:
+                building_kwargs = True
 
-        return fnc(*varargs, **func_args)
+            if building_kwargs:
+                func_kwargs[p.name] = args[p.name]
+            elif p.kind == inspect.Parameter.VAR_POSITIONAL:
+                func_args.extend(args[p.name])
+            else:
+                func_args.append(args[p.name])
+
+        return (fnc, (func_args, func_kwargs))
+
+    def run(self):
+        (fnc, (func_args, func_kwargs)) = self.parse_for_run()
+
+        return fnc(*func_args, **func_kwargs)

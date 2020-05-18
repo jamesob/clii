@@ -131,3 +131,52 @@ def add(*files, updated: Arg('-u', bool) = False):
 if __name__ == '__main__':
     cli.run() 
 ```
+
+## Usage notes
+
+### Help text from docstrings
+
+clii will pull argument help text from docstrings that are formatted like so:
+```python
+import clii
+cli = clii.App()
+
+@cli.cmd
+def foo(bar: str):
+    """
+    Args:
+      bar: some kind of helpful docstring.
+    """
+
+cli.run()
+```
+
+Specifically, the docstring is searched for "  [parameter name]:" - if that 
+pattern is found, the contents after the colon are used as help text.
+
+
+### `store_true` and `store_false` inference
+
+Arguments that are declared type bool and given a default value are inferred
+as being `store_true` or `store_false` depending upon their default value;
+it is inferred that if the flag is given on the commandline, the reverse of
+the default is desired.
+
+For example, in
+
+```python
+@cli.cmd
+def commit(force: bool = False):
+    ...
+```
+
+if `--force` is given, the function will be called with `force=True`, but
+otherwise `force` will stay False.
+
+---
+
+If you like using this library, consider sending me some magic internet money:
+
+```
+bc1qlj36t63qlgkywg83gwslcu3ehl76h2k2d6hcv2
+```
