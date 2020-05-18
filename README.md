@@ -16,7 +16,7 @@ cli = App()
 def add(a: int, b: int = 3):
     print(a + b)
 
-@cli.main
+@cli.cmd
 def subtract(path: Path):
     run(f'rm -rf {path}')
 
