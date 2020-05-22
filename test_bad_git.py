@@ -15,6 +15,7 @@ cli.add_arg('--verbose', '-v', action='store_true', default=False)
 
 @cli.cmd
 def clone(url: str, target: Path, branch: t.Optional[str] = None):
+    """Clone the branch so you can melt your computer."""
     branch = f' -b {branch}' if branch else ''
 
     if cli.args.verbose:

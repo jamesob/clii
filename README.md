@@ -95,6 +95,7 @@ cli.add_arg('--verbose', '-v', action='store_true', default=False)
 
 @cli.cmd
 def clone(url: str, target: Path, branch: t.Optional[str] = None):
+    """Clone the branch so you can melt your computer."""
     branch = f' -b {branch}' if branch else ''
 
     # We can reference global args since all parsed arguments are attached
@@ -130,6 +131,35 @@ def add(*files, updated: Arg('-u', bool) = False):
 
 if __name__ == '__main__':
     cli.run() 
+```
+
+which then gets you
+
+```
+% ./test_bad_git.py --help
+usage: test_bad_git.py [-h] [--verbose] {clone,push,commit,add} ...
+
+A really lame version of git.
+
+positional arguments:
+  {clone,push,commit,add}
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --verbose, -v
+
+% ./test_bad_git.py clone --help
+usage: test_bad_git.py clone [-h] [--branch BRANCH] url target
+
+Clone the branch so you can melt your computer.
+
+positional arguments:
+  url
+  target
+
+optional arguments:
+  -h, --help       show this help message and exit
+  --branch BRANCH  default: None
 ```
 
 ## Usage notes
