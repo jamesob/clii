@@ -24,6 +24,21 @@ if __name__ == '__main__':
     cli.run() 
 ```
 
+- **No dependencies.** This library has no dependencies and is a single file.
+  You wanna vendor it? Vendor it.
+
+- **Short implementation.** Take 10 minutes, skim the implementation, convince
+  yourself I'm not exfiltrating your `id_rsa`, then vendor this puppy and never
+  think about anything again.
+
+- **Nothing to learn.** if you know how to use Python function annotations, you
+  already know 98% of this library. 
+
+- **Optimized for the common case.** Check out `test_bad_git.py`. I know what
+  you want to do (create a subpar reproduction of git), and I've made it
+  concise. 
+
+
 Okay, you and I both know the last thing that anyone needs is another way to
 generate command line interfaces. The idea of adding an additional dependency
 to your project just so you can learn yet another
@@ -52,21 +67,6 @@ the common task of wiring up subparsers that call functions is a pain.
 stupid library.**
 
 ---
-
-- **No dependencies.** This library has no dependencies and is a single file.
-  You wanna vendor it? Vendor it.
-
-- **Short implementation.** Take 10 minutes, skim the implementation, convince
-  yourself I'm not exfiltrating your `id_rsa`, then vendor this puppy and never
-  think about anything again.
-
-- **Nothing to learn.** if you know how to use Python function annotations, you
-  already know 98% of this library. 
-
-- **Optimized for the common case.** Check out `test_bad_git.py`. I know what
-  you want to do (create a subpar reproduction of git), and I've made it
-  concise. 
-
 
 ## Installation
 
