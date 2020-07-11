@@ -24,6 +24,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+import sys
 import argparse
 import functools
 import inspect
@@ -207,9 +208,11 @@ class App:
 
         sub = self.subparsers.add_parser(
             fnc.__name__.replace('_', '-'), description=fnc.__doc__)
+        logger.debug("Added subparser: %s", sub)
 
         for arg in Arg.from_func(fnc):
             arg.add_to_parser(sub)
+            logger.debug("  Adding argument: %s", arg)
 
         sub.set_defaults(func=fnc)
 
@@ -222,7 +225,11 @@ class App:
         self.args = self.parser.parse_args()
         args = vars(self.args)
         logger.debug("Parsed args: %s", args)
-        fnc = args.pop('func')
+        fnc = args.pop('func', None)
+
+        if not fnc:
+            self.parser.print_help()
+            sys.exit(1)
 
         func_args = []
         func_kwargs = {}

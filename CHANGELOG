@@ -2,3 +2,7 @@
 ## 0.2.1
 
 - Fix integer default handling (#2)
+
+## 0.2.2
+
+- If no command found, show help
