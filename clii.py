@@ -122,7 +122,7 @@ class Arg:
             if kwargs.get('type') == inspect.Parameter.empty:
                 kwargs.pop('type')
 
-        if self.type == bool or self.default in [True, False]:
+        if self.type == bool or any(self.default is i for i in [True, False]):
             kwargs['action'] = 'store_false' if self.default else 'store_true'
             kwargs.pop('type', '')
 
