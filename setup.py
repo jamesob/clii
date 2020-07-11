@@ -25,5 +25,5 @@ setup(
     name='clii',
     packages=find_packages(),
     url='https://github.com/jamesob/clii',
-    version='0.2.0',
+    version='0.2.1',
 )
