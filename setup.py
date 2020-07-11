@@ -21,6 +21,7 @@ setup(
     license="MIT license",
     include_package_data=True,
     long_description=readme,
+    long_description_content_type='text/markdown',
     keywords='clii',
     name='clii',
     packages=find_packages(),
