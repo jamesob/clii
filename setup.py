@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 with open('README.md') as readme_file:
     readme = readme_file.read()
@@ -24,7 +24,7 @@ setup(
     long_description_content_type='text/markdown',
     keywords='clii',
     name='clii',
-    packages=find_packages(),
+    py_modules=['clii'],
     url='https://github.com/jamesob/clii',
-    version='0.2.3',
+    version='0.2.4',
 )
