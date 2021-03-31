@@ -34,31 +34,32 @@ import logging
 from textwrap import dedent
 
 
-logger = logging.getLogger('clii')
-if os.environ.get('CLII_DEBUG'):
+logger = logging.getLogger("clii")
+if os.environ.get("CLII_DEBUG"):
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler())
 
 
 class Arg:
-    def __init__(self,
-                 name_or_flags: t.Union[str, t.Sequence[str]],
-                 type: object = str,
-                 help: str = '',
-                 default: object = inspect.Parameter.empty,
-                 is_kwarg: bool = False,
-                 is_vararg: bool = False,
-                 dest: t.Optional[str] = None,
-                 ):
+    def __init__(
+        self,
+        name_or_flags: t.Union[str, t.Sequence[str]],
+        type: object = str,
+        help: str = "",
+        default: object = inspect.Parameter.empty,
+        is_kwarg: bool = False,
+        is_vararg: bool = False,
+        dest: t.Optional[str] = None,
+    ):
         names: t.List[str] = (
-            [name_or_flags] if isinstance(name_or_flags, str) else
-            list(name_or_flags))
+            [name_or_flags] if isinstance(name_or_flags, str) else list(name_or_flags)
+        )
 
         # Store original parameter name unmangled (e.g. no '-' for '_' sub).
         self.dest = dest or names[0]
 
         if is_kwarg:
-            names = [n.replace('_', '-') for n in names]
+            names = [n.replace("_", "-") for n in names]
 
         self.name = names[0]
         self.all_names = list(names)
@@ -69,9 +70,7 @@ class Arg:
         self.help = help
 
     @classmethod
-    def from_parameter(cls,
-                       param: inspect.Parameter,
-                       help: str = '') -> 'Arg':
+    def from_parameter(cls, param: inspect.Parameter, help: str = "") -> "Arg":
         type = param.annotation
         arg = None
 
@@ -97,35 +96,36 @@ class Arg:
         )
 
     @classmethod
-    def from_func(cls, func: t.Callable) -> t.Sequence['Arg']:
+    def from_func(cls, func: t.Callable) -> t.Sequence["Arg"]:
         # Ignore `**kwargs`; it can't be sensibly interpreted into flags
         params = [
-            p for p in _get_func_params(func) if
-            p.kind != inspect.Parameter.VAR_KEYWORD]
+            p for p in _get_func_params(func) if p.kind != inspect.Parameter.VAR_KEYWORD
+        ]
 
         helps_from_doc = _get_helps_from_func(func, [p.name for p in params])
 
         return tuple(
-            cls.from_parameter(param, helps_from_doc.get(param.name, ''))
-            for param in _get_func_params(func) if
+            cls.from_parameter(param, helps_from_doc.get(param.name, ""))
+            for param in _get_func_params(func)
+            if
             # Ignore `**kwargs`; it can't be sensibly interpreted into flags
-            param.kind != inspect.Parameter.VAR_KEYWORD)
+            param.kind != inspect.Parameter.VAR_KEYWORD
+        )
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
-        kwargs = dict(
-            default=self.default, type=self.type, help=self.arg_help)
+        kwargs = dict(default=self.default, type=self.type, help=self.arg_help)
 
         if self.is_kwarg:
-            kwargs['dest'] = self.dest
+            kwargs["dest"] = self.dest
         elif self.is_vararg:
-            kwargs['nargs'] = '*'
-            kwargs.pop('default', '')
-            if kwargs.get('type') == inspect.Parameter.empty:
-                kwargs.pop('type')
+            kwargs["nargs"] = "*"
+            kwargs.pop("default", "")
+            if kwargs.get("type") == inspect.Parameter.empty:
+                kwargs.pop("type")
 
         if self.type == bool or any(self.default is i for i in [True, False]):
-            kwargs['action'] = 'store_false' if self.default else 'store_true'
-            kwargs.pop('type', '')
+            kwargs["action"] = "store_false" if self.default else "store_true"
+            kwargs.pop("type", "")
 
         logger.debug(f"Attaching argument: {self.names} -> {kwargs}")
         parser.add_argument(*self.names, **kwargs)  # type: ignore
@@ -143,17 +143,17 @@ class Arg:
         if not self.is_kwarg:
             return (self.name,)
 
-        assert all(i.startswith('-') for i in self.all_names[1:])
+        assert all(i.startswith("-") for i in self.all_names[1:])
         assert self.name == self.all_names[0]
-        return (f'--{self.name}',) + tuple(self.all_names[1:])
+        return (f"--{self.name}",) + tuple(self.all_names[1:])
 
     @property
     def arg_help(self) -> str:
-        out = self.help or ''
+        out = self.help or ""
         if self.default is not inspect.Parameter.empty:
             if out:
-                out += '. '
-            out += f'default: {self.default}'
+                out += ". "
+            out += f"default: {self.default}"
         return out
 
 
@@ -169,7 +169,7 @@ def _get_helps_from_func(func, param_names) -> t.Dict[str, str]:
 
     for line in dedent(func.__doc__).splitlines():
         for p in param_names:
-            patt = f'  {p}:'
+            patt = f"  {p}:"
 
             if patt in line:
                 helps_from_doc[p] = line.split(patt)[-1].strip()
@@ -181,6 +181,7 @@ class App:
     def __init__(self, *args, **kwargs):
         self.parser = argparse.ArgumentParser(*args, **kwargs)
         self.subparsers = None
+        self.args = argparse.Namespace()
 
     def add_arg(self, *args, **kwargs):
         self.parser.add_argument(*args, **kwargs)
@@ -200,14 +201,25 @@ class App:
         @functools.wraps(fnc)
         def wrapper(*args, **kwargs):
             return fnc(*args, **kwargs)
+
         return wrapper
 
-    def cmd(self, fnc):
+    def cmd(self, fnc) -> t.Callable:
         if not self.subparsers:
             self.subparsers = self.parser.add_subparsers()
 
+        desc = fnc.__doc__ or ""
+        doclines = []
+
+        for line in desc.splitlines():
+            if line.strip().lower() in ["args:", "kwargs;"]:
+                break
+            doclines.append(line)
+
         sub = self.subparsers.add_parser(
-            fnc.__name__.replace('_', '-'), description=fnc.__doc__)
+            fnc.__name__.replace("_", "-"),
+            description="\n".join(doclines),
+        )
         logger.debug("Added subparser: %s", sub)
 
         for arg in Arg.from_func(fnc):
@@ -219,13 +231,14 @@ class App:
         @functools.wraps(fnc)
         def wrapper(*args, **kwargs):
             return fnc(*args, **kwargs)
+
         return wrapper
 
     def parse_for_run(self) -> t.Tuple[t.Callable, t.Tuple[t.List, t.Dict]]:
         self.args = self.parser.parse_args()
         args = vars(self.args)
         logger.debug("Parsed args: %s", args)
-        fnc = args.pop('func', None)
+        fnc = args.pop("func", None)
 
         if not fnc:
             self.parser.print_help()
