@@ -26,5 +26,5 @@ setup(
     name='clii',
     py_modules=['clii'],
     url='https://github.com/jamesob/clii',
-    version='0.2.4',
+    version='1.0.0',
 )

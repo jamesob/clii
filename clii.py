@@ -3,7 +3,6 @@ clii
 
 The easiest damned argparse wrapper there ever was.
 
-
 Copyright 2020 James O'Beirne
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -34,65 +33,73 @@ import logging
 from textwrap import dedent
 
 
+__VERSION__ = '1.0.0'
+
 logger = logging.getLogger("clii")
 if os.environ.get("CLII_DEBUG"):
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler())
 
 
+# Storage to that maps functions to a map of overrides for arguments. Allows
+# users to manually specify ArgumentParser.add_arguments() arguments using
+# the @cli.arg(...) decorator.
+ARG_OVERRIDES_MAP = {}
+
+
 class Arg:
     def __init__(
         self,
-        name_or_flags: t.Union[str, t.Sequence[str]],
+        param_name: str,
+        flags: t.Sequence[str],
         type: object = str,
         help: str = "",
         default: object = inspect.Parameter.empty,
         is_kwarg: bool = False,
         is_vararg: bool = False,
-        dest: t.Optional[str] = None,
+        argparse_kwarg_overrides: t.Optional[t.Dict[str, t.Any]] = None,
     ):
-        names: t.List[str] = (
-            [name_or_flags] if isinstance(name_or_flags, str) else list(name_or_flags)
-        )
-
+        self.param_name = param_name
+        self.flags = flags
         # Store original parameter name unmangled (e.g. no '-' for '_' sub).
-        self.dest = dest or names[0]
 
         if is_kwarg:
-            names = [n.replace("_", "-") for n in names]
+            self.flags = [n.replace("_", "-") for n in flags]
 
-        self.name = names[0]
-        self.all_names = list(names)
         self.type = type
         self.default = default
         self.is_kwarg = is_kwarg
         self.is_vararg = is_vararg
         self.help = help
+        self.argparse_kwarg_overrides = argparse_kwarg_overrides or {}
 
     @classmethod
-    def from_parameter(cls, param: inspect.Parameter, help: str = "") -> "Arg":
-        type = param.annotation
-        arg = None
+    def from_parameter(cls, param: inspect.Parameter, help: str = "", addl_options=None) -> "Arg":
+        flags = []
+        kwarg_overrides = None
+        if addl_options:
+            addl_flags, kwarg_overrides = addl_options
+            for flag in addl_flags:
+                flags.append(flag)
 
-        def is_kwarg(p):
-            return p.default != inspect.Parameter.empty
+        flag = param.name.replace('_', '-')
+        is_kwarg = param.default != inspect.Parameter.empty
+        is_vararg = param.kind == inspect.Parameter.VAR_POSITIONAL
 
-        if isinstance(type, cls):
-            # User already specified an Arg, just use that.
-            arg = type
-            arg.is_kwarg = is_kwarg(param)
-            arg.default = param.default
-            arg.update_name(param.name)
-            arg.dest = param.name
-            return arg
+        if is_kwarg and not any(f.startswith("--") for f in flags):
+            flags.append(f"--{flag}")
+        elif not flags:
+            flags = [param.name]
+
         return cls(
             param.name,
+            flags,
             type=param.annotation,
             default=param.default,
             help=help,
-            is_kwarg=is_kwarg(param),
-            is_vararg=(param.kind == inspect.Parameter.VAR_POSITIONAL),
-            dest=param.name,
+            is_kwarg=is_kwarg,
+            is_vararg=is_vararg,
+            argparse_kwarg_overrides=kwarg_overrides,
         )
 
     @classmethod
@@ -101,11 +108,14 @@ class Arg:
         params = [
             p for p in _get_func_params(func) if p.kind != inspect.Parameter.VAR_KEYWORD
         ]
-
+        addl_options = ARG_OVERRIDES_MAP.get(func, {})
         helps_from_doc = _get_helps_from_func(func, [p.name for p in params])
 
         return tuple(
-            cls.from_parameter(param, helps_from_doc.get(param.name, ""))
+            cls.from_parameter(
+                param,
+                helps_from_doc.get(param.name, ""),
+                addl_options=addl_options.get(param.name))
             for param in _get_func_params(func)
             if
             # Ignore `**kwargs`; it can't be sensibly interpreted into flags
@@ -115,37 +125,29 @@ class Arg:
     def add_to_parser(self, parser: argparse.ArgumentParser):
         kwargs = dict(default=self.default, type=self.type, help=self.arg_help)
 
-        if self.is_kwarg:
-            kwargs["dest"] = self.dest
-        elif self.is_vararg:
+        disallowed_overrides = set(self.argparse_kwarg_overrides.keys()) & {
+            'dest', 'nargs'
+        }
+        if disallowed_overrides:
+            raise ValueError(
+                f"can't override add_argument() kwargs {disallowed_overrides}")
+
+        kwargs.update(self.argparse_kwarg_overrides)
+
+        if self.is_vararg:
             kwargs["nargs"] = "*"
             kwargs.pop("default", "")
             if kwargs.get("type") == inspect.Parameter.empty:
                 kwargs.pop("type")
+        elif self.is_kwarg:
+            kwargs["dest"] = self.param_name
 
         if self.type == bool or any(self.default is i for i in [True, False]):
             kwargs["action"] = "store_false" if self.default else "store_true"
             kwargs.pop("type", "")
 
-        logger.debug(f"Attaching argument: {self.names} -> {kwargs}")
-        parser.add_argument(*self.names, **kwargs)  # type: ignore
-
-    def update_name(self, name: str):
-        if name not in self.all_names:
-            self.all_names.insert(0, name)
-        else:
-            assert self.all_names[0] == name
-
-        self.name = name
-
-    @property
-    def names(self) -> t.Tuple[str, ...]:
-        if not self.is_kwarg:
-            return (self.name,)
-
-        assert all(i.startswith("-") for i in self.all_names[1:])
-        assert self.name == self.all_names[0]
-        return (f"--{self.name}",) + tuple(self.all_names[1:])
+        logger.debug(f"Attaching argument: {self.flags} -> {kwargs}")
+        parser.add_argument(*self.flags, **kwargs)  # type: ignore
 
     @property
     def arg_help(self) -> str:
@@ -231,6 +233,17 @@ class App:
         @functools.wraps(fnc)
         def wrapper(*args, **kwargs):
             return fnc(*args, **kwargs)
+
+        return wrapper
+
+    def arg(self, name: str, *args, **kwargs) -> t.Callable:
+        """
+        Add additional ArgumentParser.add_argument() args for a certain arg.
+        """
+        def wrapper(fnc):
+            ARG_OVERRIDES_MAP.setdefault(fnc, {})
+            ARG_OVERRIDES_MAP[fnc][name] = (args, kwargs)
+            return fnc
 
         return wrapper
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.8
+#!/usr/bin/env python3
 """
 A really lame version of git.
 """
@@ -6,7 +6,7 @@ A really lame version of git.
 from pathlib import Path
 import typing as t
 
-from clii import App, Arg
+from clii import App
 
 
 cli = App(description=__doc__)
@@ -31,15 +31,16 @@ def push(remote: str, branch: str, force: bool = False):
 
 
 @cli.cmd
-def commit(all: Arg('-a', bool) = False,
-           message: Arg('-m', str) = None):
-
+@cli.arg('all', '-a')
+@cli.arg('message', '-m')
+def commit(all: bool = False, message: t.Optional[str] = None):
     print(all)
     print(message)
 
 
 @cli.cmd
-def add(*files, updated: Arg('-u', bool) = False):
+@cli.arg('updated', '-u')
+def add(*files, updated: bool = False):
     if cli.args.verbose:
         print(f"adding files: {files}")
 

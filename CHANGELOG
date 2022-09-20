@@ -1,3 +1,7 @@
+## 1.0.0
+
+- Finally stable enough to do a point release.
+- Removes clunky `Arg` interface, introduces cool new `@cli.arg()` decorator.
 
 ## 0.2.1
 

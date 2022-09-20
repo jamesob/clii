@@ -1,14 +1,13 @@
 #!/usr/bin/env python3.7
-from clii import App, Arg
+from clii import App
 
 cli = App(description=__doc__)
 cli.add_arg('--verbose', '-v', action='store_true', default=False)
 
 
 @cli.main
-def say_hello(name: str,
-              greeting: Arg('-g', str, 'Greeting to use') = 'sup',
-              num_times: int = 1):
+@cli.arg('greeting', '-g', help='Greeting to use')
+def say_hello(name: str, greeting: str = 'sup', num_times: int = 1):
     """Reach out and greet somebody."""
     for _ in range(num_times):
         print(f'{greeting}, {name}')

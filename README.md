@@ -6,7 +6,7 @@ boilerplate.
 
 ```python
 #!/usr/bin/env python3.8
-from clii import App, Arg
+from clii import App
 from pathlib import Path
 from subprocess import run
 
@@ -86,7 +86,7 @@ A really lame version of git.
 from pathlib import Path
 import typing as t
 
-from clii import App, Arg
+from clii import App
 
 
 cli = App(description=__doc__)
@@ -113,15 +113,17 @@ def push(remote: str, branch: str, force: bool = False):
 
 
 @cli.cmd
-def commit(all: Arg('-a', bool) = False,
-           message: Arg('-m', str) = None):
+@cli.arg('all', '-a')  # add a short flag, or any other argparse setting
+@cli.arg('message', '-m')  
+def commit(all: bool = False, message: str = ''):
     # Arguments are --all, -a and --message, -m
     print(all)
     print(message)
 
 
 @cli.cmd
-def add(*files, updated: Arg('-u', bool) = False):
+@cli.arg('updated', '-u')  
+def add(*files, updated: bool = False):
     # `files` will be a variadic positional arg, while --updated/-u is a bool
     # flag.
     if cli.args.verbose:
