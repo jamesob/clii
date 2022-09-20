@@ -12,13 +12,22 @@ from subprocess import run
 
 cli = App()
 
+
 @cli.cmd
 def add(a: int, b: int = 3):
     print(a + b)
 
+
 @cli.cmd
+@cli.arg('path', '-p', help='Destroy where?')
 def subtract(path: Path):
     run(f'rm -rf {path}')
+
+
+@cli.main
+def main():
+    print(f"{add(1, 2)} and {subtract('/uhoh')}")
+
 
 if __name__ == '__main__':
     cli.run() 
@@ -38,6 +47,11 @@ if __name__ == '__main__':
   you want to do (create a subpar reproduction of git), and I've made it
   concise. 
 
+- **Functions can still be used as plain old functions.** You can still call
+  the clii-decorated functions regularly with no special ceremony. The
+  decorators are only used to construct a parser.
+
+---
 
 Okay, you and I both know the last thing that anyone needs is another way to
 generate command line interfaces. The idea of adding an additional dependency
