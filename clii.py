@@ -33,7 +33,7 @@ import logging
 from textwrap import dedent
 
 
-__VERSION__ = '1.0.0'
+__VERSION__ = '1.0.1'
 
 logger = logging.getLogger("clii")
 if os.environ.get("CLII_DEBUG"):
