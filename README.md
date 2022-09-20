@@ -166,6 +166,20 @@ optional arguments:
 
 ## Usage notes
 
+### Add a main command with `@App.main`
+
+Decorating any function with the `@cli.main` decorator means that function
+is the default subparser chosen if no function argument is given.
+
+
+### Add `add_argument` arguments with `@cli.arg(...)`
+
+You can add arbitrary `ArgumentParser.add_argument(...)` args for a given
+parameter by using the `@cli.arg('paramname', <additional args>...)` 
+decorator.
+
+This decorator must be applied on lines *after* the `@cli.cmd` decorator.
+
 ### Help text from docstrings
 
 clii will pull argument help text from docstrings that are formatted like so:
